@@ -1,19 +1,3 @@
-/*
- * Copyright (C) 2023 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package com.example.woof
 
 import android.os.Bundle
@@ -21,27 +5,23 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Card
-import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold // Import Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.focusModifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
@@ -56,10 +36,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             WoofTheme {
-                // A surface container using the 'background' color from the theme
-                Surface(
-                    modifier = Modifier.fillMaxSize()
-                ) {
+                Surface(modifier = Modifier.fillMaxSize()) {
                     WoofApp()
                 }
             }
@@ -67,21 +44,15 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-/**
- * Composable that displays an app bar and a list of dogs.
- */
 @Composable
 fun WoofApp() {
-    // Wrap your content in a Scaffold to properly handle system bars
     Scaffold(
-        topBar = {
-            WoofDogBarApp()
-        }
-    ) { it ->
-        LazyColumn(contentPadding = it){
-            items(dogs){
+        topBar = { WoofDogBarApp() }
+    ) { innerPadding ->
+        LazyColumn(contentPadding = innerPadding) {
+            items(dogs) { dog ->
                 DogItem(
-                    dog = it,
+                    dog = dog,
                     modifier = Modifier.padding(dimensionResource(R.dimen.padding_small))
                 )
             }
@@ -89,63 +60,90 @@ fun WoofApp() {
     }
 }
 
-/**
- * Composable that displays a list item containing a dog icon and their information.
- *
- * @param dog contains the data that populates the list item
- * @param modifier modifiers to set to this composable
- */
 @Composable
 fun DogItem(
     dog: Dog,
     modifier: Modifier = Modifier
 ) {
-    Card(modifier = modifier){
-        Row(
-            modifier = modifier
-                .fillMaxWidth()
-                .padding(dimensionResource(R.dimen.padding_small))
+    var expanded by remember { mutableStateOf(false) }
+    val color by animateColorAsState(
+        targetValue = if (expanded)
+            MaterialTheme.colorScheme.tertiaryContainer
+        else
+            MaterialTheme.colorScheme.primaryContainer
+    )
+
+    Card(modifier = modifier) {
+        Column(
+            modifier = Modifier
+                .animateContentSize(
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessMedium
+                    )
+                )
+                .background(color)
         ) {
-            DogIcon(dog.imageResourceId)
-            DogInformation(dog.name, dog.age)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(dimensionResource(R.dimen.padding_small))
+            ) {
+                DogIcon(dog.imageResourceId)
+                DogInformation(dog.name, dog.age)
+                Spacer(modifier = Modifier.weight(1f))
+                DogItemButton(
+                    expanded = expanded,
+                    onClick = { expanded = !expanded }
+                )
+            }
+
+            if (expanded) {
+                DogHobby(
+                    dogHobby = dog.hobbies,
+                    modifier = Modifier.padding(
+                        start = dimensionResource(R.dimen.padding_medium),
+                        top = dimensionResource(R.dimen.padding_small),
+                        end = dimensionResource(R.dimen.padding_medium),
+                        bottom = dimensionResource(R.dimen.padding_medium)
+                    )
+                )
+            }
         }
     }
-
 }
 
-/**
- * Composable that displays a photo of a dog.
- *
- * @param dogIcon is the resource ID for the image of the dog
- * @param modifier modifiers to set to this composable
- */
+@Composable
+fun DogItemButton(
+    expanded: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    IconButton(onClick = onClick, modifier = modifier) {
+        Icon(
+            imageVector = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+            tint = MaterialTheme.colorScheme.secondary,
+            contentDescription = stringResource(R.string.expand_button_content_description)
+        )
+    }
+}
+
 @Composable
 fun DogIcon(
     @DrawableRes dogIcon: Int,
     modifier: Modifier = Modifier
 ) {
     Image(
+        painter = painterResource(dogIcon),
+        contentDescription = null,
         modifier = modifier
             .size(dimensionResource(R.dimen.image_size))
             .padding(dimensionResource(R.dimen.padding_small))
             .clip(MaterialTheme.shapes.small),
-        contentScale = ContentScale.Crop,
-        painter = painterResource(dogIcon),
-
-        // Content Description is not needed here - image is decorative, and setting a null content
-        // description allows accessibility services to skip this element during navigation.
-
-        contentDescription = null
+        contentScale = ContentScale.Crop
     )
 }
 
-/**
- * Composable that displays a dog's name and age.
- *
- * @param dogName is the resource ID for the string of the dog's name
- * @param dogAge is the Int that represents the dog's age
- * @param modifier modifiers to set to this composable
- */
 @Composable
 fun DogInformation(
     @StringRes dogName: Int,
@@ -165,15 +163,29 @@ fun DogInformation(
     }
 }
 
+@Composable
+fun DogHobby(
+    @StringRes dogHobby: Int,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier) {
+        Text(
+            text = stringResource(R.string.about),
+            style = MaterialTheme.typography.labelSmall
+        )
+        Text(
+            text = stringResource(dogHobby),
+            style = MaterialTheme.typography.bodyLarge
+        )
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WoofDogBarApp(modifier: Modifier = Modifier){
+fun WoofDogBarApp(modifier: Modifier = Modifier) {
     CenterAlignedTopAppBar(
         title = {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ){
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Image(
                     painter = painterResource(R.drawable.ic_woof_logo),
                     contentDescription = null,
@@ -191,20 +203,18 @@ fun WoofDogBarApp(modifier: Modifier = Modifier){
     )
 }
 
-/**
- * Composable that displays what the UI of the app looks like in light theme in the design tab.
- */
-@Preview
+@Preview(showBackground = true)
 @Composable
 fun WoofPreview() {
     WoofTheme(darkTheme = false) {
         WoofApp()
     }
 }
-@Preview
+
+@Preview(showBackground = true)
 @Composable
-fun WoofPreviewDark(){
-    WoofTheme(darkTheme = true){
+fun WoofPreviewDark() {
+    WoofTheme(darkTheme = true) {
         WoofApp()
     }
 }
